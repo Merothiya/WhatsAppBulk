@@ -1,0 +1,98 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Contact {
+  id             String         @id @default(uuid())
+  phoneNumber    String         @unique
+  name           String?
+  optedIn        Boolean        @default(false)
+  conversations  Conversation[]
+  messages       Message[]
+  batchItems     OutboundBatchItem[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Conversation {
+  id             String    @id @default(uuid())
+  contactId      String
+  contact        Contact   @relation(fields: [contactId], references: [id])
+  lastMessageAt  DateTime  @default(now())
+  messages       Message[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([contactId])
+}
+
+model Message {
+  id               String       @id @default(uuid()) // Our internal ID
+  metaMessageId    String?      @unique // ID from WhatsApp
+  conversationId   String
+  conversation     Conversation @relation(fields: [conversationId], references: [id])
+  contactId        String
+  contact          Contact      @relation(fields: [contactId], references: [id])
+  direction        String       // 'INBOUND' or 'OUTBOUND'
+  type             String       // 'text', 'template', 'image', etc.
+  content          Json         // The actual text or template data
+  status           String       // 'sent', 'delivered', 'read', 'failed', 'received'
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
+model WebhookEvent {
+  id             String   @id @default(uuid())
+  metaEventId    String   @unique
+  payload        Json
+  processed      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+}
+
+model Template {
+  id             String   @id @default(uuid())
+  metaTemplateId String   @unique
+  name           String
+  language       String
+  category       String
+  status         String
+  components     Json
+  rejectedReason String?
+  lastSyncedAt   DateTime @default(now())
+}
+
+model OutboundBatch {
+  id             String   @id @default(uuid())
+  name           String
+  templateId     String
+  status         String   // 'pending', 'processing', 'completed', 'paused'
+  totalRecipients Int
+  processedCount  Int      @default(0)
+  failedCount    Int      @default(0)
+  items          OutboundBatchItem[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model OutboundBatchItem {
+  id               String        @id @default(uuid())
+  batchId          String
+  batch            OutboundBatch @relation(fields: [batchId], references: [id])
+  contactId        String
+  contact          Contact       @relation(fields: [contactId], references: [id])
+  variables        Json?
+  status           String        // 'pending', 'sent', 'failed'
+  errorMessage     String?
+  metaMessageId    String?
+  processedAt      DateTime?
+}
+
+model Setting {
+  key   String @id
+  value String
+}
