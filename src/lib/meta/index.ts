@@ -6,12 +6,23 @@ export const getMetaConfig = () => {
   const wabaId = process.env.META_WABA_ID;
   const phoneNumberId = process.env.META_PHONE_NUMBER_ID;
 
+  // Log existence (not values) to help debug Vercel environment
+  console.log('[Meta Config Check]', {
+    appId: !!appId,
+    appSecret: !!appSecret,
+    verifyToken: !!verifyToken,
+    systemUserToken: !!systemUserToken ? `Present (len: ${systemUserToken.length})` : 'Missing',
+    wabaId: !!wabaId,
+    phoneNumberId: !!phoneNumberId,
+  });
+
   return { appId, appSecret, verifyToken, systemUserToken, wabaId, phoneNumberId };
 };
 
 export async function sendWhatsAppMessage(to: string, type: 'text' | 'template', content: any) {
   const { phoneNumberId, systemUserToken } = getMetaConfig();
   if (!phoneNumberId || !systemUserToken) {
+    console.error('[Meta API] Send failed: Missing Config', { phoneNumberId: !!phoneNumberId, token: !!systemUserToken });
     throw new Error('Meta API configuration is missing.');
   }
 
@@ -41,6 +52,7 @@ export async function sendWhatsAppMessage(to: string, type: 'text' | 'template',
 
   const data = await res.json();
   if (!res.ok) {
+    console.error('[Meta API] Send Error Payload:', JSON.stringify(data, null, 2));
     throw new Error(data.error?.message || 'Meta API generated an error');
   }
 
@@ -50,18 +62,23 @@ export async function sendWhatsAppMessage(to: string, type: 'text' | 'template',
 export async function fetchTemplates() {
   const { wabaId, systemUserToken } = getMetaConfig();
   if (!wabaId || !systemUserToken) {
-    throw new Error('Meta API configuration is missing.');
+    console.error('[Meta API] Fetch Templates failed: Missing Config', { wabaId: !!wabaId, token: !!systemUserToken });
+    throw new Error('Meta API configuration (WABA ID or Token) is missing.');
   }
 
   const url = `https://graph.facebook.com/v19.0/${wabaId}/message_templates?limit=100`;
+  console.log('[Meta API] Fetching templates from:', url);
+
   const res = await fetch(url, {
     headers: { 'Authorization': `Bearer ${systemUserToken}` },
   });
 
   const data = await res.json();
   if (!res.ok) {
+    console.error('[Meta API] Fetch Error Payload:', JSON.stringify(data, null, 2));
     throw new Error(data.error?.message || 'Meta API generated an error');
   }
 
   return data.data || [];
 }
+

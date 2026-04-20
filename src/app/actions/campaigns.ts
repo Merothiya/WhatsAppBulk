@@ -138,32 +138,46 @@ export async function processBatchChunk(batchId: string, chunkSize: number = 20)
 }
 
 export async function fetchLiveTemplates() {
-  const { fetchTemplates } = await import('@/lib/meta');
-  const templates = await fetchTemplates();
-  
-  let synced = 0;
+  try {
+    console.log('[Sync] Starting template fetch from Meta...');
+    const { fetchTemplates } = await import('@/lib/meta');
+    const templates = await fetchTemplates();
+    
+    console.log(`[Sync] Received ${templates.length} templates from Meta API.`);
+    
+    let synced = 0;
 
-  for (const t of templates) {
-    await prisma.template.upsert({
-      where: { metaTemplateId: t.id },
-      create: {
-        metaTemplateId: t.id,
-        name: t.name,
-        language: t.language,
-        category: t.category,
-        status: t.status,
-        components: t.components,
-        rejectedReason: t.rejected_reason,
-      },
-      update: {
-        status: t.status,
-        components: t.components,
-        rejectedReason: t.rejected_reason,
-        lastSyncedAt: new Date(),
+    for (const t of templates) {
+      try {
+        await prisma.template.upsert({
+          where: { metaTemplateId: t.id },
+          create: {
+            metaTemplateId: t.id,
+            name: t.name,
+            language: t.language,
+            category: t.category,
+            status: t.status,
+            components: t.components,
+            rejectedReason: t.rejected_reason,
+          },
+          update: {
+            status: t.status,
+            components: t.components,
+            rejectedReason: t.rejected_reason,
+            lastSyncedAt: new Date(),
+          }
+        });
+        synced++;
+      } catch (upsertError: any) {
+        console.error(`[Sync] Failed to upsert template ${t.name}:`, upsertError.message);
       }
-    });
-    synced++;
-  }
+    }
 
-  return synced;
+    console.log(`[Sync] Successfully synced ${synced}/${templates.length} templates.`);
+    return { success: true, count: synced };
+  } catch (error: any) {
+    console.error('[Sync] Global error in fetchLiveTemplates:', error.message);
+    throw new Error(error.message || 'Failed to sync templates with Meta.');
+  }
 }
+

@@ -12,15 +12,17 @@ export function SyncTemplatesButton() {
   const handleSync = async () => {
     setLoading(true);
     try {
-      await fetchLiveTemplates();
+      const result = await fetchLiveTemplates();
+      console.log('Sync result:', result);
       router.refresh();
-    } catch (e) {
-      console.error(e);
-      alert('Failed to sync templates. Check Meta configuration.');
+    } catch (e: any) {
+      console.error('Sync error:', e);
+      alert(`Failed to sync templates: ${e.message || 'Unknown error'}. Check Vercel Logs for details.`);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <button
