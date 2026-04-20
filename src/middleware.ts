@@ -33,12 +33,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
+     * - api (API routes)
+     * - _next (internal Next.js paths for HMR, static files, etc.)
      * - favicon.ico (favicon file)
-     * - public files (optional, but good practice)
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next|favicon.ico).*)',
   ],
 };
+
 

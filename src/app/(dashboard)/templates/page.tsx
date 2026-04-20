@@ -43,7 +43,7 @@ export default async function TemplatesPage() {
             {templates.length === 0 && (
               <tr>
                 <td colSpan={4} className="py-10 text-center text-gray-500">
-                  No templates synced yet. Click "Sync from Meta" to fetch templates.
+                  No templates synced yet. Click &quot;Sync from Meta&quot; to fetch templates.
                 </td>
               </tr>
             )}
