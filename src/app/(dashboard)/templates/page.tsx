@@ -17,10 +17,10 @@ export default async function TemplatesPage() {
         <table className="w-full text-left">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="py-3 px-6 text-sm font-medium text-gray-500">Name</th>
-              <th className="py-3 px-6 text-sm font-medium text-gray-500">Category</th>
-              <th className="py-3 px-6 text-sm font-medium text-gray-500">Language</th>
-              <th className="py-3 px-6 text-sm font-medium text-gray-500">Status</th>
+              <th className="py-3 px-6 text-sm font-medium text-gray-700">Name</th>
+              <th className="py-3 px-6 text-sm font-medium text-gray-700">Category</th>
+              <th className="py-3 px-6 text-sm font-medium text-gray-700">Language</th>
+              <th className="py-3 px-6 text-sm font-medium text-gray-700">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -42,7 +42,7 @@ export default async function TemplatesPage() {
             ))}
             {templates.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-10 text-center text-gray-500">
+                <td colSpan={4} className="py-10 text-center text-gray-700">
                   No templates synced yet. Click &quot;Sync from Meta&quot; to fetch templates.
                 </td>
               </tr>

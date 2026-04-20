@@ -1,0 +1,34 @@
+'use server';
+
+import prisma from '@/lib/db';
+
+export async function createContactsBulk(contacts: { name: string; phoneNumber: string }[]) {
+  if (!contacts || contacts.length === 0) {
+    throw new Error('No valid contacts to process.');
+  }
+
+  // Clean phone numbers: remove non-numeric characters
+  const cleanContacts = contacts.map(c => ({
+    name: c.name || 'Unknown',
+    phoneNumber: c.phoneNumber.replace(/\D/g, '')
+  })).filter(c => c.phoneNumber.length > 5);
+
+  if (cleanContacts.length === 0) {
+    throw new Error('No valid phone numbers found in the uploaded file.');
+  }
+
+  let imported = 0;
+
+  // We use standard createMany with skipDuplicates for simplicity
+  try {
+    const result = await prisma.contact.createMany({
+      data: cleanContacts,
+      skipDuplicates: true, // Requires unique constraint on phoneNumber (which exists)
+    });
+    imported = result.count;
+  } catch (error: any) {
+    throw new Error(`Bulk import failed: ${error.message}`);
+  }
+
+  return imported;
+}

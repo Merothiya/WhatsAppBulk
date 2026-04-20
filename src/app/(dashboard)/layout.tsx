@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, MessageSquare, Send, Settings, BookTemplate } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Send, Settings, BookTemplate, Users } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
@@ -17,6 +17,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <Link href="/inbox" className="flex items-center gap-3 px-3 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
             <MessageSquare size={20} />
             <span>Inbox</span>
+          </Link>
+          <Link href="/contacts" className="flex items-center gap-3 px-3 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
+            <Users size={20} />
+            <span>Contacts</span>
           </Link>
           <Link href="/campaigns" className="flex items-center gap-3 px-3 py-2 text-gray-700 rounded-lg hover:bg-gray-100">
             <Send size={20} />

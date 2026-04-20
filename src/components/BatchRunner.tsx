@@ -34,7 +34,7 @@ export function BatchRunner({ batchId, remaining, total }: { batchId: string, re
   return (
     <div className="p-4 border rounded-lg bg-white shadow-sm mt-4">
       <h3 className="font-semibold text-gray-700">Campaign Runner</h3>
-      <div className="mt-2 text-sm text-gray-500">
+      <div className="mt-2 text-sm text-gray-700">
         Processed {processed} / {total} ({currentRemaining} remaining)
       </div>
       

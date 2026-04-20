@@ -23,8 +23,8 @@ export default async function DashboardOverview() {
     { title: 'Inbound Messages', value: inboundMessages, icon: MessageSquare, color: 'text-purple-600' },
     { title: 'Outbound Sent', value: outboundSent, icon: Send, color: 'text-teal-600' },
     { title: 'Delivered', value: delivered, icon: CheckCircle2, color: 'text-green-600' },
-    { title: 'Read', value: read, icon: CheckCircle2, color: 'text-indigo-600' },
     { title: 'Failed', value: failed, icon: AlertCircle, color: 'text-red-600' },
+    { title: 'Estimated Spend', value: `₹${outboundSent}`, icon: Send, color: 'text-indigo-600' },
   ];
 
   return (
@@ -37,7 +37,7 @@ export default async function DashboardOverview() {
           return (
             <div key={i} className="bg-white p-6 rounded-xl border shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-500 mb-1">{card.title}</p>
+                <p className="text-sm font-medium text-gray-600 mb-1">{card.title}</p>
                 <h3 className="text-3xl font-bold text-gray-800">{card.value}</h3>
               </div>
               <div className={`p-4 rounded-full bg-gray-50 ${card.color}`}>

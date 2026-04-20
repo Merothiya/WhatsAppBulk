@@ -24,19 +24,19 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 text-sm">
             <div>
-              <p className="text-gray-500 mb-1">WhatsApp Business Account ID</p>
+              <p className="text-gray-700 mb-1">WhatsApp Business Account ID</p>
               <p className="font-mono text-gray-800">{config.wabaId || 'Not set'}</p>
             </div>
             <div>
-              <p className="text-gray-500 mb-1">Phone Number ID</p>
+              <p className="text-gray-700 mb-1">Phone Number ID</p>
               <p className="font-mono text-gray-800">{config.phoneNumberId || 'Not set'}</p>
             </div>
             <div>
-              <p className="text-gray-500 mb-1">App ID</p>
+              <p className="text-gray-700 mb-1">App ID</p>
               <p className="font-mono text-gray-800">{config.appId || 'Not set'}</p>
             </div>
             <div>
-              <p className="text-gray-500 mb-1">Verify Token</p>
+              <p className="text-gray-700 mb-1">Verify Token</p>
               <p className="font-mono text-gray-800 text-xs truncate max-w-[200px]">{config.verifyToken || 'Not set'}</p>
             </div>
           </div>
