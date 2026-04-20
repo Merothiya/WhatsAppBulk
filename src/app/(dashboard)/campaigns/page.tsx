@@ -1,16 +1,19 @@
 import prisma from '@/lib/db';
 import { BatchRunner } from '@/components/BatchRunner';
+import { CreateCampaignModal } from '@/components/CreateCampaignModal';
 
 export default async function CampaignsPage() {
-  const batches = await prisma.outboundBatch.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
+  const [batches, templates, contacts] = await Promise.all([
+    prisma.outboundBatch.findMany({ orderBy: { createdAt: 'desc' } }),
+    prisma.template.findMany({ where: { status: 'APPROVED' } }),
+    prisma.contact.findMany({ orderBy: { createdAt: 'desc' } })
+  ]);
 
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Campaigns</h2>
-        <button className="bg-teal-600 text-white px-4 py-2 rounded-md">New Campaign</button>
+        <CreateCampaignModal templates={templates} contacts={contacts} />
       </div>
 
       <div className="grid gap-6">

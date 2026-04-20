@@ -28,9 +28,22 @@ export default async function InboxPage() {
                 </span>
               </div>
               <p className="text-sm text-gray-600 truncate">
-                {conv.messages[0]?.type === 'text' 
-                  ? (conv.messages[0].content as any)?.text?.body || 'Text message'
-                  : `[${conv.messages[0]?.type || 'No messages'}]`}
+                {(() => {
+                  const msg = conv.messages[0];
+                  if (!msg) return 'No messages';
+                  
+                  const content = msg.content as any;
+                  if (msg.direction === 'OUTBOUND') {
+                    if (msg.type === 'template') return `[Template] ${content?.name || 'Sent'}`;
+                    if (msg.type === 'text') return content?.text?.body || content?.text || 'Text Sent';
+                    return `[${msg.type} Sent]`;
+                  } else {
+                    if (msg.type === 'text') return content?.text?.body || 'Text message';
+                    if (msg.type === 'button') return `[Button Option: ${content?.button?.text}]`;
+                    if (msg.type === 'interactive') return `[Interactive Response]`;
+                    return `[${msg.type} Received]`;
+                  }
+                })()}
               </p>
             </div>
           ))}

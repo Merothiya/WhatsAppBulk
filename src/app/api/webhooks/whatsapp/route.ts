@@ -32,10 +32,12 @@ export async function POST(req: NextRequest) {
     }
 
     const payload = JSON.parse(rawBody);
+    console.log('[Webhook Payload]', JSON.stringify(payload, null, 2));
 
     // Basic validation
     const parsed = WhatsAppWebhookSchema.safeParse(payload);
     if (!parsed.success) {
+      console.warn('[Webhook] Invalid payload format, ignoring.');
       return new NextResponse('Invalid payload', { status: 400 });
     }
 
@@ -54,15 +56,20 @@ export async function POST(req: NextRequest) {
       });
 
       // Handle Contacts and Messages
-      if (changes.contacts && changes.messages) {
-        const contactInfo = changes.contacts[0];
+      if (changes.messages && changes.messages.length > 0) {
         const messageInfo = changes.messages[0];
+        const contactPhone = messageInfo.from;
+        
+        // Try to get contact name if provided
+        const contactName = changes.contacts && changes.contacts.length > 0 
+          ? changes.contacts[0].profile.name 
+          : 'Unknown Contact';
 
         // Upsert Contact
         const contact = await prisma.contact.upsert({
-          where: { phoneNumber: contactInfo.wa_id },
-          create: { phoneNumber: contactInfo.wa_id, name: contactInfo.profile.name },
-          update: { name: contactInfo.profile.name },
+          where: { phoneNumber: contactPhone },
+          create: { phoneNumber: contactPhone, name: contactName },
+          update: { name: contactName },
         });
 
         // Upsert Conversation
@@ -73,16 +80,18 @@ export async function POST(req: NextRequest) {
         });
 
         // Save Message
-        await prisma.message.create({
-          data: {
+        await prisma.message.upsert({
+          where: { metaMessageId: messageInfo.id },
+          create: {
             metaMessageId: messageInfo.id,
             conversationId: conversation.id,
             contactId: contact.id,
             direction: 'INBOUND',
             type: messageInfo.type,
-            content: messageInfo,
+            content: messageInfo as any,
             status: 'received',
-          }
+          },
+          update: {} // Do nothing if it already exists
         });
       }
 
