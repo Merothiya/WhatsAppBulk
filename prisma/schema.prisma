@@ -70,6 +70,7 @@ model OutboundBatch {
   id             String   @id @default(uuid())
   name           String
   templateId     String
+  templateVariables Json?  // Stores header media URLs and body variable values
   status         String   // 'pending', 'processing', 'completed', 'paused'
   totalRecipients Int
   processedCount  Int      @default(0)

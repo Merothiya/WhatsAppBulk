@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, UploadCloud } from 'lucide-react';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { createContactsBulk } from '@/app/actions/contacts';
 import { useRouter } from 'next/navigation';
 
@@ -18,46 +19,69 @@ export function UploadContactsModal() {
     }
   };
 
+  const processRows = async (rows: any[]) => {
+    const payload = rows.map(row => {
+      const phoneKey = Object.keys(row).find(k => k.toLowerCase().includes('phone') || k.toLowerCase().includes('number') || k.toLowerCase().includes('mobile'));
+      const nameKey = Object.keys(row).find(k => k.toLowerCase().includes('name') || k.toLowerCase().includes('first'));
+      return {
+        name: nameKey ? String(row[nameKey]) : 'Unknown',
+        phoneNumber: phoneKey ? String(row[phoneKey]) : String(Object.values(row)[0])
+      };
+    }).filter(r => r.phoneNumber && r.phoneNumber.length > 3);
+
+    const imported = await createContactsBulk(payload);
+    alert(`Successfully imported ${imported} contacts!`);
+    setIsOpen(false);
+    setFile(null);
+    router.refresh();
+  };
+
   const handleUpload = () => {
     if (!file) return;
-    
     setLoading(true);
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: async (results) => {
-        try {
-          const data = results.data as any[];
-          
-          // Try to intelligently find name and phone columns
-          const payload = data.map(row => {
-             // Look for commonly used keys for phone
-             const phoneKey = Object.keys(row).find(k => k.toLowerCase().includes('phone') || k.toLowerCase().includes('number') || k.toLowerCase().includes('mobile'));
-             // Look for commonly used keys for name
-             const nameKey = Object.keys(row).find(k => k.toLowerCase().includes('name') || k.toLowerCase().includes('first'));
-             
-             return {
-               name: nameKey ? row[nameKey] : 'Unknown',
-               phoneNumber: phoneKey ? row[phoneKey] : Object.values(row)[0] // Fallback to first column if no headers match typical phone naming
-             };
-          });
 
-          const imported = await createContactsBulk(payload);
-          alert(`Successfully imported ${imported} contacts!`);
-          setIsOpen(false);
-          setFile(null);
-          router.refresh();
+    const extension = file.name.split('.').pop()?.toLowerCase();
+
+    if (extension === 'csv') {
+      // CSV parsing with papaparse
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          try {
+            await processRows(results.data as any[]);
+          } catch (err: any) {
+            alert(`Error: ${err.message}`);
+          } finally {
+            setLoading(false);
+          }
+        },
+        error: (error) => {
+          alert(`CSV parse error: ${error.message}`);
+          setLoading(false);
+        }
+      });
+    } else if (extension === 'xlsx' || extension === 'xls') {
+      // Excel parsing with xlsx
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.SheetNames[0];
+          const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
+          await processRows(rows);
         } catch (err: any) {
-          alert(`Error uploading contacts: ${err.message}`);
+          alert(`Excel parse error: ${err.message}`);
         } finally {
           setLoading(false);
         }
-      },
-      error: (error) => {
-        alert(`Error parsing CSV: ${error.message}`);
-        setLoading(false);
-      }
-    });
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      alert('Unsupported file type. Please upload a .csv, .xlsx, or .xls file.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -67,7 +91,7 @@ export function UploadContactsModal() {
         className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 transition"
       >
         <UploadCloud size={16} />
-        Upload CSV
+        Upload Contacts
       </button>
 
       {isOpen && (
@@ -81,23 +105,24 @@ export function UploadContactsModal() {
             </div>
 
             <div className="p-6">
-              <p className="text-sm text-gray-600 mb-4">
-                Please upload a CSV file containing your contacts. It must include a column for the <strong>Phone Number</strong> (including country code) and optionally a <strong>Name</strong> column.
+              <p className="text-sm text-gray-700 mb-4">
+                Upload a <strong>.csv</strong> or <strong>.xlsx</strong> file with columns for <strong>Phone Number</strong> (with country code) and optionally <strong>Name</strong>.
               </p>
               
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center">
                 <UploadCloud size={32} className="text-gray-400 mb-2" />
                 <input 
                   type="file" 
-                  accept=".csv" 
+                  accept=".csv,.xlsx,.xls" 
                   onChange={handleFileChange}
-                  className="block w-full text-sm text-gray-500 max-w-xs mx-auto
+                  className="block w-full text-sm text-gray-700 max-w-xs mx-auto
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-md file:border-0
                     file:text-sm file:font-semibold
                     file:bg-teal-50 file:text-teal-700
                     hover:file:bg-teal-100"
                 />
+                {file && <p className="text-xs text-gray-600 mt-2">Selected: {file.name}</p>}
               </div>
             </div>
 

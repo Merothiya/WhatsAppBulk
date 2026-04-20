@@ -2,6 +2,8 @@ import prisma from '@/lib/db';
 import Link from 'next/link';
 import { User, CheckCircle2 } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function InboxPage({ searchParams }: { searchParams: { chat?: string } }) {
   const activeChatId = searchParams.chat;
 

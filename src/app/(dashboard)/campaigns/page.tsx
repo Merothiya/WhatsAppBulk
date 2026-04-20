@@ -1,6 +1,7 @@
 import prisma from '@/lib/db';
-import { BatchRunner } from '@/components/BatchRunner';
+import Link from 'next/link';
 import { CreateCampaignModal } from '@/components/CreateCampaignModal';
+import { ChevronRight } from 'lucide-react';
 
 export default async function CampaignsPage() {
   const [batches, templates, contacts] = await Promise.all([
@@ -16,16 +17,37 @@ export default async function CampaignsPage() {
         <CreateCampaignModal templates={templates} contacts={contacts} />
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-4">
         {batches.map(batch => {
-          const remaining = batch.totalRecipients - batch.processedCount - batch.failedCount;
+          const progress = batch.totalRecipients === 0 ? 0 : Math.round(((batch.processedCount + batch.failedCount) / batch.totalRecipients) * 100);
           return (
-            <div key={batch.id} className="bg-white border rounded-lg p-6 shadow-sm">
-              <h3 className="text-lg font-semibold">{batch.name}</h3>
-              <p className="text-sm text-gray-700 mt-1">Status: {batch.status}</p>
-              
-              <BatchRunner batchId={batch.id} remaining={remaining} total={batch.totalRecipients} />
-            </div>
+            <Link key={batch.id} href={`/campaigns/${batch.id}`} className="block bg-white border rounded-lg p-5 shadow-sm hover:shadow-md transition group">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-lg font-semibold text-gray-800">{batch.name}</h3>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                      batch.status === 'completed' ? 'bg-green-100 text-green-700' :
+                      batch.status === 'processing' ? 'bg-blue-100 text-blue-700' :
+                      batch.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {batch.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-gray-700">
+                    <span>{batch.totalRecipients} recipients</span>
+                    <span>{batch.processedCount} sent</span>
+                    {batch.failedCount > 0 && <span className="text-red-600">{batch.failedCount} failed</span>}
+                    <span className="text-indigo-600 font-medium">{'\u20B9'}{batch.processedCount} est.</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-3">
+                    <div className="bg-teal-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                  </div>
+                </div>
+                <ChevronRight size={20} className="text-gray-400 group-hover:text-teal-600 transition ml-4" />
+              </div>
+            </Link>
           );
         })}
         {batches.length === 0 && (
