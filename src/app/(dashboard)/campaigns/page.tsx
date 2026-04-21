@@ -1,6 +1,7 @@
 import prisma from '@/lib/db';
 import Link from 'next/link';
 import { CreateCampaignModal } from '@/components/CreateCampaignModal';
+import { DeleteCampaignButton } from '@/components/DeleteCampaignButton';
 import { ChevronRight } from 'lucide-react';
 
 export default async function CampaignsPage() {
@@ -21,7 +22,7 @@ export default async function CampaignsPage() {
         {batches.map(batch => {
           const progress = batch.totalRecipients === 0 ? 0 : Math.round(((batch.processedCount + batch.failedCount) / batch.totalRecipients) * 100);
           return (
-            <Link key={batch.id} href={`/campaigns/${batch.id}`} className="block bg-white border rounded-lg p-5 shadow-sm hover:shadow-md transition group">
+            <Link key={batch.id} href={`/campaigns/${batch.id}`} className="block bg-white border rounded-lg p-5 shadow-sm hover:shadow-md transition group relative">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -45,7 +46,10 @@ export default async function CampaignsPage() {
                     <div className="bg-teal-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-gray-400 group-hover:text-teal-600 transition ml-4" />
+                <div className="flex items-center ml-4">
+                  {batch.status === 'pending' && <DeleteCampaignButton batchId={batch.id} />}
+                  <ChevronRight size={20} className="text-gray-400 group-hover:text-teal-600 transition ml-2" />
+                </div>
               </div>
             </Link>
           );

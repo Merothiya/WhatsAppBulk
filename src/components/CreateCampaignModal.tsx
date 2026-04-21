@@ -52,6 +52,7 @@ export function CreateCampaignModal({
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [bodyParamValues, setBodyParamValues] = useState<string[]>([]);
+  const [selectedContactIdsState, setSelectedContactIdsState] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const selectedTemplate = useMemo(
@@ -109,6 +110,7 @@ export function CreateCampaignModal({
       setSelectedTemplateId('');
       setHeaderMediaUrl('');
       setBodyParamValues([]);
+      setSelectedContactIdsState(new Set());
       router.push(`/campaigns/${campaignId}`);
     } catch (error: any) {
       alert(`Failed to create campaign: ${error.message}`);
@@ -248,14 +250,45 @@ export function CreateCampaignModal({
 
                 {/* Contact Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Contacts ({contacts.length} available)</label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Select Contacts ({contacts.length} available)</label>
+                    {contacts.length > 0 && (
+                      <label className="flex items-center space-x-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          className="rounded text-teal-600 focus:ring-teal-500"
+                          checked={selectedContactIdsState.size === contacts.length && contacts.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedContactIdsState(new Set(contacts.map(c => c.id)));
+                            } else {
+                              setSelectedContactIdsState(new Set());
+                            }
+                          }}
+                        />
+                        <span>Select All</span>
+                      </label>
+                    )}
+                  </div>
                   <div className="border rounded-md p-3 max-h-48 overflow-y-auto bg-gray-50 space-y-2">
                     {contacts.length === 0 ? (
                       <p className="text-sm text-gray-600 text-center py-2">No contacts available. Upload contacts first.</p>
                     ) : (
                       contacts.map(c => (
                         <label key={c.id} className="flex items-center space-x-2 p-1 hover:bg-gray-100 rounded">
-                          <input type="checkbox" name="contactIds" value={c.id} className="rounded text-teal-600 focus:ring-teal-500" />
+                          <input 
+                            type="checkbox" 
+                            name="contactIds" 
+                            value={c.id} 
+                            checked={selectedContactIdsState.has(c.id)}
+                            onChange={(e) => {
+                              const next = new Set(selectedContactIdsState);
+                              if (e.target.checked) next.add(c.id);
+                              else next.delete(c.id);
+                              setSelectedContactIdsState(next);
+                            }}
+                            className="rounded text-teal-600 focus:ring-teal-500" 
+                          />
                           <span className="text-sm text-gray-800">{c.name || 'Unknown'} ({c.phoneNumber})</span>
                         </label>
                       ))

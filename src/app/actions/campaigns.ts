@@ -230,3 +230,23 @@ export async function fetchLiveTemplates() {
     throw new Error(error.message || 'Failed to sync templates with Meta.');
   }
 }
+
+export async function deleteCampaign(batchId: string) {
+  try {
+    const batch = await prisma.outboundBatch.findUnique({ where: { id: batchId } });
+    if (!batch) throw new Error('Campaign not found.');
+    
+    // Only allow deletion if never started
+    if (batch.status !== 'pending') {
+      throw new Error('Only pending campaigns that have not started processing yet can be deleted.');
+    }
+
+    // Wrap in a transaction to handle referential integrity
+    await prisma.$transaction([
+      prisma.outboundBatchItem.deleteMany({ where: { batchId } }),
+      prisma.outboundBatch.delete({ where: { id: batchId } })
+    ]);
+  } catch (error: any) {
+    throw new Error(`Failed to delete campaign: ${error.message}`);
+  }
+}
