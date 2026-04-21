@@ -1,5 +1,6 @@
 import prisma from '@/lib/db';
 import { Users, Send, CheckCircle2, AlertCircle, MessageSquare } from 'lucide-react';
+import MediaUpload from '@/components/MediaUpload';
 
 export default async function DashboardOverview() {
   const [
@@ -53,6 +54,11 @@ export default async function DashboardOverview() {
         <p className="opacity-90 max-w-2xl">
           Your WhatsApp Business connection is active. Visit the Campaigns tab to start a new batch using approved templates.
         </p>
+      </div>
+
+      <div className="mt-8">
+         <h2 className="text-2xl font-bold text-gray-800 mb-6">Tools</h2>
+         <MediaUpload />
       </div>
     </div>
   );

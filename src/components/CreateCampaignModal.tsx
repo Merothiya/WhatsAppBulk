@@ -221,10 +221,26 @@ export function CreateCampaignModal({
                     ))}
 
                     {/* Live Preview */}
-                    {previewBody && (
-                      <div className="mt-2 p-3 bg-white border rounded-md">
+                    {(previewBody || (requirements.headerType === 'IMAGE' && headerMediaUrl)) && (
+                      <div className="mt-2">
                         <p className="text-xs font-medium text-gray-700 mb-1">Preview:</p>
-                        <p className="text-sm text-gray-800 whitespace-pre-wrap">{previewBody}</p>
+                        <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
+                          {requirements.headerType === 'IMAGE' && headerMediaUrl && (
+                            <div className="aspect-video bg-gray-100 flex items-center justify-center border-b overflow-hidden">
+                              <img 
+                                src={headerMediaUrl} 
+                                alt="Header Media Preview" 
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          )}
+                          <div className="p-3">
+                            <p className="text-sm text-gray-800 whitespace-pre-wrap">{previewBody}</p>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

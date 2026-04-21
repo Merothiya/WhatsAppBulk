@@ -32,3 +32,13 @@ export async function createContactsBulk(contacts: { name: string; phoneNumber: 
 
   return imported;
 }
+
+export async function deleteContact(id: string) {
+  try {
+    await prisma.contact.delete({
+      where: { id },
+    });
+  } catch (error: any) {
+    throw new Error(`Failed to delete contact: ${error.message}`);
+  }
+}
