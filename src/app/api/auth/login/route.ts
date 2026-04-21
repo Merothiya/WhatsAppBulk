@@ -46,11 +46,24 @@ setInterval(() => {
 // ---------------------------------------------------------------------------
 // Helper – generate a session token from the password
 // ---------------------------------------------------------------------------
-function generateSessionToken(password: string): string {
-  return crypto
-    .createHmac('sha256', password)
-    .update('whatsapp-bulk-session')
-    .digest('hex');
+async function generateSessionToken(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(password);
+  const messageData = encoder.encode('whatsapp-bulk-session');
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign('HMAC', key, messageData);
+
+  return Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 // ---------------------------------------------------------------------------
@@ -133,7 +146,7 @@ export async function POST(request: NextRequest) {
   // Success – reset rate limit for this IP and set cookie
   rateLimitStore.delete(ip);
 
-  const sessionToken = generateSessionToken(adminPassword);
+  const sessionToken = await generateSessionToken(adminPassword);
 
   const response = NextResponse.json({ success: true });
 

@@ -1,15 +1,26 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import crypto from 'crypto';
+async function generateSessionToken(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(password);
+  const messageData = encoder.encode('whatsapp-bulk-session');
 
-function generateSessionToken(password: string): string {
-  return crypto
-    .createHmac('sha256', password)
-    .update('whatsapp-bulk-session')
-    .digest('hex');
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign('HMAC', key, messageData);
+
+  return Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Skip middleware for internal Next.js requests & websocket upgrades
@@ -32,13 +43,8 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('admin_token')?.value;
   const adminPassword = process.env.ADMIN_PASSWORD;
 
-  // If no password configured, allow access (local dev convenience)
-  if (!adminPassword) {
-    return NextResponse.next();
-  }
-
   // Validate the session token
-  const expectedToken = generateSessionToken(adminPassword);
+  const expectedToken = await generateSessionToken(adminPassword || '');
 
   if (token && token === expectedToken) {
     return NextResponse.next();
