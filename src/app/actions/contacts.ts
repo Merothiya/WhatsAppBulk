@@ -35,9 +35,13 @@ export async function createContactsBulk(contacts: { name: string; phoneNumber: 
 
 export async function deleteContact(id: string) {
   try {
-    await prisma.contact.delete({
-      where: { id },
-    });
+    // Delete in a transaction to handle foreign key constraints
+    await prisma.$transaction([
+      prisma.outboundBatchItem.deleteMany({ where: { contactId: id } }),
+      prisma.message.deleteMany({ where: { contactId: id } }),
+      prisma.conversation.deleteMany({ where: { contactId: id } }),
+      prisma.contact.delete({ where: { id } }),
+    ]);
   } catch (error: any) {
     throw new Error(`Failed to delete contact: ${error.message}`);
   }

@@ -50,69 +50,79 @@ export async function processBatchChunk(batchId: string, chunkSize: number = 20)
     data: { status: 'processing' }
   });
 
+  // Fetch template ONCE for the entire batch chunk
+  const firstItem = pendingItems[0];
+  const template = await prisma.template.findUnique({
+    where: { id: firstItem.batch.templateId }
+  });
+
+  if (!template) {
+    throw new Error(`Template not found for ID: ${firstItem.batch.templateId}`);
+  }
+
+  // Build the full Meta API template payload ONCE
+  const templatePayload: any = {
+    name: template.name,
+    language: { code: template.language },
+  };
+
+  // Add components if user provided variables
+  const vars = firstItem.batch.templateVariables as any;
+  if (vars) {
+    const components: any[] = [];
+
+    // Header component (image/video/document)
+    if (vars.headerMediaUrl) {
+      const templateComponents = template.components as any[];
+      const headerComp = templateComponents?.find((c: any) => c.type === 'HEADER');
+      const headerFormat = headerComp?.format?.toLowerCase() || 'image';
+
+      components.push({
+        type: 'header',
+        parameters: [{
+          type: headerFormat,
+          [headerFormat]: { link: vars.headerMediaUrl }
+        }]
+      });
+    }
+
+    // Body component (text variables like {{1}}, {{2}})
+    if (vars.bodyParams && vars.bodyParams.length > 0) {
+      components.push({
+        type: 'body',
+        parameters: vars.bodyParams.map((val: string) => ({
+          type: 'text',
+          text: val
+        }))
+      });
+    }
+
+    if (components.length > 0) {
+      templatePayload.components = components;
+    }
+  }
+
+  // Process all items concurrently
   let processed = 0;
   let failed = 0;
 
-  for (const item of pendingItems) {
+  const promises = pendingItems.map(async (item) => {
     try {
-      // FIXED: Use `id` (our internal UUID) instead of `metaTemplateId`
-      const template = await prisma.template.findUnique({
-        where: { id: item.batch.templateId }
-      });
-
-      if (!template) {
-        throw new Error(`Template not found for ID: ${item.batch.templateId}`);
-      }
-
-      // Build the full Meta API template payload
-      const templatePayload: any = {
-        name: template.name,
-        language: { code: template.language },
-      };
-
-      // Add components if user provided variables
-      const vars = item.batch.templateVariables as any;
-      if (vars) {
-        const components: any[] = [];
-
-        // Header component (image/video/document)
-        if (vars.headerMediaUrl) {
-          const templateComponents = template.components as any[];
-          const headerComp = templateComponents?.find((c: any) => c.type === 'HEADER');
-          const headerFormat = headerComp?.format?.toLowerCase() || 'image';
-
-          components.push({
-            type: 'header',
-            parameters: [{
-              type: headerFormat,
-              [headerFormat]: { link: vars.headerMediaUrl }
-            }]
-          });
-        }
-
-        // Body component (text variables like {{1}}, {{2}})
-        if (vars.bodyParams && vars.bodyParams.length > 0) {
-          components.push({
-            type: 'body',
-            parameters: vars.bodyParams.map((val: string) => ({
-              type: 'text',
-              text: val
-            }))
-          });
-        }
-
-        if (components.length > 0) {
-          templatePayload.components = components;
-        }
-      }
-
       const response = await sendWhatsAppMessage(item.contact.phoneNumber, 'template', templatePayload);
       const metaMessageId = response.messages?.[0]?.id;
+
+      let msgStatus = 'sent';
+      if (!metaMessageId) {
+        msgStatus = 'failed';
+        console.warn(`[Campaign] Meta API returned success but no message ID for ${item.contact.phoneNumber}`, response);
+      } else {
+        console.log(`✅ [Campaign] SUCCESSFULLY SENT to ${item.contact.phoneNumber} | Meta ID: ${metaMessageId}`);
+      }
 
       await prisma.outboundBatchItem.update({
         where: { id: item.id },
         data: {
-          status: 'sent',
+          status: msgStatus,
           metaMessageId: metaMessageId,
           processedAt: new Date(),
         }
@@ -138,9 +148,8 @@ export async function processBatchChunk(batchId: string, chunkSize: number = 20)
           }
         });
       }
-
     } catch (error: any) {
-      console.error(`[Campaign] Failed to send to ${item.contact.phoneNumber}:`, error.message);
+      console.error(`❌ [Campaign] FAILED to send to ${item.contact.phoneNumber}:`, error.message);
       await prisma.outboundBatchItem.update({
         where: { id: item.id },
         data: {
@@ -151,7 +160,10 @@ export async function processBatchChunk(batchId: string, chunkSize: number = 20)
       });
       failed++;
     }
-  }
+  });
+
+  // Wait for all items in the chunk to finish processing concurrently
+  await Promise.all(promises);
 
   await prisma.outboundBatch.update({
     where: { id: batchId },

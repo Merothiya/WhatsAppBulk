@@ -99,7 +99,7 @@ export function CreateCampaignModal({
     }
 
     try {
-      await createCampaign(
+      const campaignId = await createCampaign(
         formData.get('name') as string,
         selectedTemplateId,
         selectedContactIds,
@@ -109,7 +109,7 @@ export function CreateCampaignModal({
       setSelectedTemplateId('');
       setHeaderMediaUrl('');
       setBodyParamValues([]);
-      router.refresh();
+      router.push(`/campaigns/${campaignId}`);
     } catch (error: any) {
       alert(`Failed to create campaign: ${error.message}`);
     } finally {
