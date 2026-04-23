@@ -17,6 +17,8 @@ model Contact {
   batchItems     OutboundBatchItem[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+
+  @@index([createdAt])
 }
 
 model Conversation {
@@ -29,6 +31,8 @@ model Conversation {
   updatedAt      DateTime  @updatedAt
 
   @@unique([contactId])
+  @@index([lastMessageAt])
+  @@index([createdAt])
 }
 
 model Message {
@@ -44,6 +48,10 @@ model Message {
   status           String       // 'sent', 'delivered', 'read', 'failed', 'received'
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+
+  @@index([createdAt])
+  @@index([contactId])
+  @@index([conversationId])
 }
 
 model WebhookEvent {
@@ -91,6 +99,9 @@ model OutboundBatchItem {
   errorMessage     String?
   metaMessageId    String?
   processedAt      DateTime?
+
+  @@index([batchId])
+  @@index([status])
 }
 
 model Setting {

@@ -10,7 +10,7 @@ export async function createContactsBulk(contacts: { name: string; phoneNumber: 
 
   // Clean phone numbers: remove non-numeric characters
   const cleanContacts = contacts.map(c => ({
-    name: c.name || 'Unknown',
+    name: (c.name || 'Unknown').trim(),
     phoneNumber: c.phoneNumber.replace(/\D/g, '')
   })).filter(c => c.phoneNumber.length > 5);
 
@@ -48,5 +48,43 @@ export async function deleteContact(id: string) {
     revalidatePath('/contacts');
   } catch (error: any) {
     throw new Error(`Failed to delete contact: ${error.message}`);
+  }
+}
+
+export async function getContacts(limit?: number, skip: number = 0, search?: string) {
+  try {
+    const where = search ? {
+      name: {
+        contains: search,
+        mode: 'insensitive' as const
+      }
+    } : {};
+
+    return await prisma.contact.findMany({
+      where,
+      orderBy: [
+        { name: 'asc' },
+        { createdAt: 'desc' },
+        { id: 'asc' }
+      ],
+      take: limit,
+      skip: skip,
+    });
+  } catch (error: any) {
+    throw new Error(`Failed to fetch contacts: ${error.message}`);
+  }
+}
+
+export async function getContactsCount(search?: string) {
+  try {
+    const where = search ? {
+      name: {
+        contains: search,
+        mode: 'insensitive' as const
+      }
+    } : {};
+    return await prisma.contact.count({ where });
+  } catch (error: any) {
+    throw new Error(`Failed to count contacts: ${error.message}`);
   }
 }

@@ -8,9 +8,28 @@ export async function createCampaign(
   name: string,
   templateId: string,
   contactIds: string[],
-  templateVariables?: any
+  templateVariables?: any,
+  selectAll: boolean = false,
+  search?: string
 ) {
-  if (contactIds.length === 0) throw new Error('No contacts selected');
+  let idsToUse = contactIds;
+
+  if (selectAll) {
+    const where = search ? {
+      name: {
+        contains: search,
+        mode: 'insensitive' as const
+      }
+    } : {};
+
+    const allContacts = await prisma.contact.findMany({
+      where,
+      select: { id: true }
+    });
+    idsToUse = allContacts.map(c => c.id);
+  }
+
+  if (idsToUse.length === 0) throw new Error('No contacts selected');
 
   const batch = await prisma.outboundBatch.create({
     data: {
@@ -18,9 +37,9 @@ export async function createCampaign(
       templateId,
       templateVariables: templateVariables || null,
       status: 'pending',
-      totalRecipients: contactIds.length,
+      totalRecipients: idsToUse.length,
       items: {
-        create: contactIds.map((id) => ({
+        create: idsToUse.map((id) => ({
           contactId: id,
           status: 'pending',
         })),
@@ -94,7 +113,7 @@ export async function processBatchChunk(batchId: string, chunkSize: number = 20)
         type: 'body',
         parameters: vars.bodyParams.map((val: string) => ({
           type: 'text',
-          text: val
+          text: val.trim() // Automatically remove leading/trailing spaces
         }))
       });
     }

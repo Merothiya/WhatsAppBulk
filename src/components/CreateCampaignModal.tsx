@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createCampaign } from '@/app/actions/campaigns';
+import { getContacts, getContactsCount } from '@/app/actions/contacts';
 import { useRouter } from 'next/navigation';
 
 interface TemplateParam {
@@ -46,19 +47,90 @@ function extractTemplateRequirements(template: any) {
 }
 
 export function CreateCampaignModal({ 
-  templates, 
-  contacts 
+  templates 
 }: { 
-  templates: any[], 
-  contacts: any[] 
+  templates: any[] 
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [skip, setSkip] = useState(0);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [bodyParamValues, setBodyParamValues] = useState<string[]>([]);
   const [selectedContactIdsState, setSelectedContactIdsState] = useState<Set<string>>(new Set());
+  const [isSelectAll, setIsSelectAll] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [totalMatchingCount, setTotalMatchingCount] = useState(0);
   const router = useRouter();
+
+  const PAGE_SIZE = 20;
+
+  const loadMoreContacts = async (isInitial = false, overrideSearch?: string) => {
+    if (loadingContacts || (!hasMore && !isInitial)) return;
+    
+    setLoadingContacts(true);
+    const currentSkip = isInitial ? 0 : skip;
+    const currentSearch = overrideSearch !== undefined ? overrideSearch : searchTerm;
+    
+    try {
+      const list = await getContacts(PAGE_SIZE, currentSkip, currentSearch);
+      if (isInitial) {
+        setContacts(list);
+        setSkip(PAGE_SIZE);
+      } else {
+        setContacts(prev => [...prev, ...list]);
+        setSkip(prev => prev + PAGE_SIZE);
+      }
+      setHasMore(list.length === PAGE_SIZE);
+    } catch (e) {
+      console.error('Failed to load contacts', e);
+    } finally {
+      setLoadingContacts(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && contacts.length === 0) {
+      loadMoreContacts(true);
+    }
+  }, [isOpen]);
+
+  // Handle Search Change
+  useEffect(() => {
+    if (isOpen) {
+      const delayDebounceFn = setTimeout(() => {
+        setSkip(0);
+        setHasMore(true);
+        loadMoreContacts(true, searchTerm);
+        
+        // Fetch total matching count
+        getContactsCount(searchTerm).then(setTotalMatchingCount).catch(console.error);
+      }, 300);
+
+      return () => clearTimeout(delayDebounceFn);
+    }
+  }, [searchTerm]);
+
+  // Sync isSelectAll with newly loaded contacts
+  useEffect(() => {
+    if (isSelectAll && contacts.length > 0) {
+      setSelectedContactIdsState(prev => {
+        const next = new Set(prev);
+        contacts.forEach(c => next.add(c.id));
+        return next;
+      });
+    }
+  }, [contacts, isSelectAll]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 50) { // Near bottom
+      loadMoreContacts();
+    }
+  };
 
   const selectedTemplate = useMemo(
     () => templates.find(t => t.id === selectedTemplateId),
@@ -87,9 +159,9 @@ export function CreateCampaignModal({
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const selectedContactIds = formData.getAll('contactIds') as string[];
+    const selectedContactIds = Array.from(selectedContactIdsState);
 
-    if (selectedContactIds.length === 0) {
+    if (!isSelectAll && selectedContactIds.length === 0) {
       alert('Please select at least one contact.');
       setLoading(false);
       return;
@@ -108,14 +180,18 @@ export function CreateCampaignModal({
       const campaignId = await createCampaign(
         formData.get('name') as string,
         selectedTemplateId,
-        selectedContactIds,
-        Object.keys(templateVariables).length > 0 ? templateVariables : undefined
+        isSelectAll ? [] : selectedContactIds, // Send empty array if selectAll is true
+        Object.keys(templateVariables).length > 0 ? templateVariables : undefined,
+        isSelectAll,
+        searchTerm
       );
       setIsOpen(false);
       setSelectedTemplateId('');
       setHeaderMediaUrl('');
       setBodyParamValues([]);
       setSelectedContactIdsState(new Set());
+      setIsSelectAll(false);
+      setSearchTerm('');
       router.push(`/campaigns/${campaignId}`);
     } catch (error: any) {
       alert(`Failed to create campaign: ${error.message}`);
@@ -132,7 +208,8 @@ export function CreateCampaignModal({
     if (!bodyComp?.text) return null;
     let text = bodyComp.text as string;
     requirements.bodyParams.forEach((param, i) => {
-      text = text.replace(`{{${param.name}}}`, bodyParamValues[i] || `{{${param.name}}}`);
+      const val = bodyParamValues[i] ? bodyParamValues[i].trim() : `{{${param.name}}}`;
+      text = text.replace(`{{${param.name}}}`, val);
     });
     return text;
   }, [selectedTemplate, bodyParamValues]);
@@ -254,18 +331,40 @@ export function CreateCampaignModal({
                 )}
 
                 {/* Contact Selection */}
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-sm font-medium text-gray-700">Select Contacts ({contacts.length} available)</label>
-                    {contacts.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-2">
+                    <label className="block text-sm font-medium text-gray-700">Select Contacts</label>
+                    <input 
+                      type="text" 
+                      placeholder="Search by name..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full border rounded-md p-2 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center px-1">
+                    <div className="flex flex-col">
+                      <p className="text-[10px] text-teal-600 uppercase tracking-wider font-bold">
+                        Selected: {isSelectAll ? totalMatchingCount : selectedContactIdsState.size}
+                      </p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+                        Loaded: {contacts.length} of {totalMatchingCount}
+                      </p>
+                    </div>
+                    {!loadingContacts && contacts.length > 0 && (
                       <label className="flex items-center space-x-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 cursor-pointer">
                         <input 
                           type="checkbox" 
                           className="rounded text-teal-600 focus:ring-teal-500"
-                          checked={selectedContactIdsState.size === contacts.length && contacts.length > 0}
+                          checked={isSelectAll}
                           onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedContactIdsState(new Set(contacts.map(c => c.id)));
+                            const checked = e.target.checked;
+                            setIsSelectAll(checked);
+                            if (checked) {
+                              const batch = new Set(selectedContactIdsState);
+                              contacts.forEach(c => batch.add(c.id));
+                              setSelectedContactIdsState(batch);
                             } else {
                               setSelectedContactIdsState(new Set());
                             }
@@ -275,28 +374,46 @@ export function CreateCampaignModal({
                       </label>
                     )}
                   </div>
-                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto bg-gray-50 space-y-2">
-                    {contacts.length === 0 ? (
+                  <div 
+                    onScroll={handleScroll}
+                    className="border rounded-md p-3 max-h-48 overflow-y-auto bg-gray-50 space-y-2"
+                  >
+                    {contacts.map(c => (
+                      <label key={c.id} className="flex items-center space-x-2 p-1 hover:bg-gray-100 rounded">
+                        <input 
+                          type="checkbox" 
+                          name="contactIds" 
+                          value={c.id} 
+                          checked={selectedContactIdsState.has(c.id) || isSelectAll}
+                          onChange={(e) => {
+                            const next = new Set(selectedContactIdsState);
+                            if (e.target.checked) {
+                              next.add(c.id);
+                            } else {
+                              next.delete(c.id);
+                              // If they manual deselect one, it's no longer a "Grand Select All"
+                              setIsSelectAll(false);
+                            }
+                            setSelectedContactIdsState(next);
+                          }}
+                          className="rounded text-teal-600 focus:ring-teal-500" 
+                        />
+                        <span className="text-sm text-gray-800">{c.name || 'Unknown'} ({c.phoneNumber})</span>
+                      </label>
+                    ))}
+                    
+                    {loadingContacts && (
+                      <div className="flex items-center justify-center py-2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-teal-600"></div>
+                      </div>
+                    )}
+
+                    {!loadingContacts && contacts.length === 0 && (
                       <p className="text-sm text-gray-600 text-center py-2">No contacts available. Upload contacts first.</p>
-                    ) : (
-                      contacts.map(c => (
-                        <label key={c.id} className="flex items-center space-x-2 p-1 hover:bg-gray-100 rounded">
-                          <input 
-                            type="checkbox" 
-                            name="contactIds" 
-                            value={c.id} 
-                            checked={selectedContactIdsState.has(c.id)}
-                            onChange={(e) => {
-                              const next = new Set(selectedContactIdsState);
-                              if (e.target.checked) next.add(c.id);
-                              else next.delete(c.id);
-                              setSelectedContactIdsState(next);
-                            }}
-                            className="rounded text-teal-600 focus:ring-teal-500" 
-                          />
-                          <span className="text-sm text-gray-800">{c.name || 'Unknown'} ({c.phoneNumber})</span>
-                        </label>
-                      ))
+                    )}
+                    
+                    {!hasMore && contacts.length > 0 && (
+                      <p className="text-[10px] text-gray-400 text-center py-1">All contacts loaded</p>
                     )}
                   </div>
                 </div>

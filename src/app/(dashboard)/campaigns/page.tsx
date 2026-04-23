@@ -7,17 +7,16 @@ import { ChevronRight } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export default async function CampaignsPage() {
-  const [batches, templates, contacts] = await Promise.all([
+  const [batches, templates] = await Promise.all([
     prisma.outboundBatch.findMany({ orderBy: { createdAt: 'desc' } }),
     prisma.template.findMany({ where: { status: 'APPROVED' } }),
-    prisma.contact.findMany({ orderBy: { createdAt: 'desc' } })
   ]);
 
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Campaigns</h2>
-        <CreateCampaignModal templates={templates} contacts={contacts} />
+        <CreateCampaignModal templates={templates} />
       </div>
 
       <div className="grid gap-4">

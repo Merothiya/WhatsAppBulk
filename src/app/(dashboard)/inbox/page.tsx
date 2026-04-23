@@ -1,6 +1,7 @@
 import prisma from '@/lib/db';
 import Link from 'next/link';
 import { User, CheckCircle2 } from 'lucide-react';
+import { MessageReplyInput } from '@/components/MessageReplyInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
       }
     },
     orderBy: { lastMessageAt: 'desc' },
+    take: 50,
   });
 
   const activeConversation = activeChatId ? await prisma.conversation.findUnique({
@@ -135,6 +137,12 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
                 );
               })}
             </div>
+
+            <MessageReplyInput 
+              conversationId={activeConversation.id} 
+              contactId={activeConversation.contactId}
+              phoneNumber={activeConversation.contact.phoneNumber}
+            />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
