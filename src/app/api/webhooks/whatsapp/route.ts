@@ -61,9 +61,8 @@ export async function POST(req: NextRequest) {
         const messageInfo = changes.messages[0];
         const contactPhone = messageInfo.from;
         
-        // Try to get contact name if provided
-        const contactName = changes.contacts && changes.contacts.length > 0 
-          ? changes.contacts[0].profile.name 
+        const contactName = (changes.contacts && changes.contacts.length > 0)
+          ? (changes.contacts[0].profile?.name || 'Unknown Contact')
           : 'Unknown Contact';
 
         // Upsert Contact
