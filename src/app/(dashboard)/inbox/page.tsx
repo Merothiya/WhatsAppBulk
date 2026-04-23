@@ -2,13 +2,25 @@ import prisma from '@/lib/db';
 import Link from 'next/link';
 import { User, CheckCircle2 } from 'lucide-react';
 import { MessageReplyInput } from '@/components/MessageReplyInput';
+import { InboxSearch } from '@/components/InboxSearch';
 
 export const dynamic = 'force-dynamic';
 
-export default async function InboxPage({ searchParams }: { searchParams: { chat?: string } }) {
+export default async function InboxPage({ searchParams }: { searchParams: { chat?: string, q?: string } }) {
   const activeChatId = searchParams.chat;
+  const query = searchParams.q;
+
+  const where = query ? {
+    contact: {
+      OR: [
+        { name: { contains: query, mode: 'insensitive' as const } },
+        { phoneNumber: { contains: query } }
+      ]
+    }
+  } : {};
 
   const conversations = await prisma.conversation.findMany({
+    where,
     include: {
       contact: true,
       messages: {
@@ -37,6 +49,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
         <div className="p-4 border-b bg-gray-50 shrink-0">
           <h2 className="font-bold text-lg text-gray-800">Inbox</h2>
         </div>
+        <InboxSearch />
         <div className="flex-1 overflow-y-auto divide-y">
           {conversations.map(conv => (
             <Link 
@@ -58,7 +71,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
                   const content = msg.content as any;
                   if (msg.direction === 'OUTBOUND') {
                     if (msg.type === 'template') return `[Template] ${content?.name || 'Sent'}`;
-                    if (msg.type === 'text') return content?.text?.body || content?.text || 'Text Sent';
+                    if (msg.type === 'text') return content?.body || content?.text?.body || content?.text || 'Text Sent';
                     return `[${msg.type} Sent]`;
                   } else {
                     if (msg.type === 'text') return content?.text?.body || 'Text message';
@@ -109,7 +122,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
                       
                       {msg.type === 'text' && (
                         <p className="text-sm text-gray-800 whitespace-pre-wrap">
-                          {content?.text?.body || content?.text || 'Text Message'}
+                          {content?.body || content?.text?.body || content?.text || 'Text Message'}
                         </p>
                       )}
 
