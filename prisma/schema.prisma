@@ -32,7 +32,7 @@ model BlockedContact {
 model Conversation {
   id             String    @id @default(uuid())
   contactId      String
-  contact        Contact   @relation(fields: [contactId], references: [id])
+  contact        Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
   lastMessageAt  DateTime  @default(now())
   messages       Message[]
   createdAt      DateTime  @default(now())
@@ -47,9 +47,9 @@ model Message {
   id               String       @id @default(uuid()) // Our internal ID
   metaMessageId    String?      @unique // ID from WhatsApp
   conversationId   String
-  conversation     Conversation @relation(fields: [conversationId], references: [id])
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   contactId        String
-  contact          Contact      @relation(fields: [contactId], references: [id])
+  contact          Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
   direction        String       // 'INBOUND' or 'OUTBOUND'
   type             String       // 'text', 'template', 'image', etc.
   content          Json         // The actual text or template data
@@ -101,7 +101,7 @@ model OutboundBatchItem {
   batchId          String
   batch            OutboundBatch @relation(fields: [batchId], references: [id])
   contactId        String
-  contact          Contact       @relation(fields: [contactId], references: [id])
+  contact          Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
   variables        Json?
   status           String        // 'pending', 'sent', 'failed'
   errorMessage     String?
