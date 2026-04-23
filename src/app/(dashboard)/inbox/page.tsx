@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { User, CheckCircle2 } from 'lucide-react';
 import { MessageReplyInput } from '@/components/MessageReplyInput';
 import { InboxSearch } from '@/components/InboxSearch';
+import { BlockContactButton } from '@/components/BlockContactButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,14 +96,21 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
       <div className="flex-1 flex flex-col bg-[#e5ddd5]">
         {activeConversation ? (
           <>
-            <div className="p-4 bg-gray-50 border-b flex items-center gap-3 shrink-0">
-              <div className="bg-gray-200 p-2 rounded-full text-gray-600">
-                <User size={20} />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-800">{activeConversation.contact.name || 'Unknown Contact'}</h3>
-                <p className="text-xs text-gray-600">{activeConversation.contact.phoneNumber}</p>
-              </div>
+            <div className="p-4 bg-gray-50 border-b flex items-center justify-between shrink-0">
+               <div className="flex items-center gap-3">
+                  <div className="bg-gray-200 p-2 rounded-full text-gray-600">
+                    <User size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-800">{activeConversation.contact.name || 'Unknown Contact'}</h3>
+                    <p className="text-xs text-gray-600">{activeConversation.contact.phoneNumber}</p>
+                  </div>
+               </div>
+
+               <BlockContactButton 
+                  contactId={activeConversation.contactId} 
+                  phoneNumber={activeConversation.contact.phoneNumber} 
+               />
             </div>
             
             <div className="flex-1 overflow-y-auto p-6 space-y-4">

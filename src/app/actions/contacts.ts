@@ -18,13 +18,24 @@ export async function createContactsBulk(contacts: { name: string; phoneNumber: 
     throw new Error('No valid phone numbers found in the uploaded file.');
   }
 
+  // 1. Get list of blocked numbers
+  const blocked = await prisma.blockedContact.findMany({
+    select: { phoneNumber: true }
+  });
+  const blockedSet = new Set(blocked.map(b => b.phoneNumber));
+
+  // 2. Filter out blocked contacts
+  const allowedContacts = cleanContacts.filter(c => !blockedSet.has(c.phoneNumber));
+
+  if (allowedContacts.length === 0) return 0;
+
   let imported = 0;
 
   // We use standard createMany with skipDuplicates for simplicity
   try {
     const result = await prisma.contact.createMany({
-      data: cleanContacts,
-      skipDuplicates: true, // Requires unique constraint on phoneNumber (which exists)
+      data: allowedContacts,
+      skipDuplicates: true,
     });
     imported = result.count;
     
@@ -86,5 +97,28 @@ export async function getContactsCount(search?: string) {
     return await prisma.contact.count({ where });
   } catch (error: any) {
     throw new Error(`Failed to count contacts: ${error.message}`);
+  }
+}
+
+export async function blockContact(contactId: string, phoneNumber: string) {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // 1. Add to blocked list
+      await tx.blockedContact.upsert({
+        where: { phoneNumber },
+        update: {},
+        create: { phoneNumber }
+      });
+
+      // 2. Delete the contact
+      // We assume cascading deletes are set or relations are managed
+      await tx.contact.delete({
+        where: { id: contactId }
+      });
+
+      return { success: true };
+    });
+  } catch (error: any) {
+    throw new Error(`Failed to block contact: ${error.message}`);
   }
 }

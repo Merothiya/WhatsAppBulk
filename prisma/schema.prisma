@@ -21,6 +21,14 @@ model Contact {
   @@index([createdAt])
 }
 
+model BlockedContact {
+  id          String   @id @default(uuid())
+  phoneNumber String   @unique
+  createdAt   DateTime @default(now())
+
+  @@index([phoneNumber])
+}
+
 model Conversation {
   id             String    @id @default(uuid())
   contactId      String
