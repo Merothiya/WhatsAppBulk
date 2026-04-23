@@ -18,9 +18,9 @@ export const WhatsAppWebhookSchema = z.object({
               z.object({
                 profile: z.object({
                   name: z.string(),
-                }),
+                }).optional(),
                 wa_id: z.string(),
-              })
+              }).passthrough()
             ).optional(),
             messages: z.array(z.any()).optional(),
             statuses: z.array(z.any()).optional(),
