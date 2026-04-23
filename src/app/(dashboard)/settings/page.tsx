@@ -1,5 +1,7 @@
 import { getMetaConfig } from '@/lib/meta';
 
+export const dynamic = 'force-dynamic';
+
 export default function SettingsPage() {
   const config = getMetaConfig();
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/db';
 import { WhatsAppWebhookSchema } from '@/lib/validations';
+import { revalidatePath } from 'next/cache';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -116,6 +117,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    revalidatePath('/inbox');
+    revalidatePath('/');
+    
     return new NextResponse('OK', { status: 200 });
 
   } catch (error) {

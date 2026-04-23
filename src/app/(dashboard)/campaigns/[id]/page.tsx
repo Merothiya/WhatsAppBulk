@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, XCircle, Clock, Send, IndianRupee, MessageSquare } from 'lucide-react';
 import { BatchRunner } from '@/components/BatchRunner';
 
+export const dynamic = 'force-dynamic';
+
 export default async function CampaignDetailPage({ params }: { params: { id: string } }) {
   const batch = await prisma.outboundBatch.findUnique({
     where: { id: params.id },

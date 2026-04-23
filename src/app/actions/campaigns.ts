@@ -1,7 +1,8 @@
 'use server';
 
 import prisma from '@/lib/db';
-import { sendWhatsAppMessage } from '@/lib/meta';
+import { sendWhatsAppMessage, fetchTemplates } from '@/lib/meta';
+import { revalidatePath } from 'next/cache';
 
 export async function createCampaign(
   name: string,
@@ -27,6 +28,7 @@ export async function createCampaign(
     },
   });
 
+  revalidatePath('/campaigns');
   return batch.id;
 }
 
@@ -190,7 +192,6 @@ export async function processBatchChunk(batchId: string, chunkSize: number = 20)
 export async function fetchLiveTemplates() {
   try {
     console.log('[Sync] Starting template fetch from Meta...');
-    const { fetchTemplates } = await import('@/lib/meta');
     const templates = await fetchTemplates();
     
     console.log(`[Sync] Received ${templates.length} templates from Meta API.`);
@@ -223,6 +224,7 @@ export async function fetchLiveTemplates() {
       }
     }
 
+    revalidatePath('/templates');
     console.log(`[Sync] Successfully synced ${synced}/${templates.length} templates.`);
     return { success: true, count: synced };
   } catch (error: any) {
@@ -246,6 +248,7 @@ export async function deleteCampaign(batchId: string) {
       prisma.outboundBatchItem.deleteMany({ where: { batchId } }),
       prisma.outboundBatch.delete({ where: { id: batchId } })
     ]);
+    revalidatePath('/campaigns');
   } catch (error: any) {
     throw new Error(`Failed to delete campaign: ${error.message}`);
   }

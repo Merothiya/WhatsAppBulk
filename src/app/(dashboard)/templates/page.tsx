@@ -1,6 +1,8 @@
 import prisma from '@/lib/db';
 import { SyncTemplatesButton } from '@/components/SyncTemplatesButton';
 
+export const dynamic = 'force-dynamic';
+
 export default async function TemplatesPage() {
   const templates = await prisma.template.findMany({
     orderBy: { lastSyncedAt: 'desc' }
