@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 
 interface TemplateParam {
   index: number;
+  name: string;
   example?: string;
 }
 
@@ -24,15 +25,19 @@ function extractTemplateRequirements(template: any) {
       }
     }
     if (comp.type === 'BODY' && comp.text) {
-      // Find all {{N}} placeholders
-      const matches = comp.text.match(/\{\{(\d+)\}\}/g);
+      // Find all {{VAR_NAME}} placeholders (digits or words)
+      const matches = comp.text.match(/\{\{(.+?)\}\}/g);
       if (matches) {
-        for (const m of matches) {
-          const idx = parseInt(m.replace(/[{}]/g, ''));
-          // Try to get example text if available
-          const example = comp.example?.body_text?.[0]?.[idx - 1];
-          bodyParams.push({ index: idx, example });
-        }
+        matches.forEach((m: string, i: number) => {
+          const varName = m.replace(/[{}]/g, '');
+          // Keep track of the actual order for Meta API
+          const example = comp.example?.body_text?.[0]?.[i];
+          bodyParams.push({ 
+            index: i + 1, 
+            name: varName,
+            example 
+          });
+        });
       }
     }
   }
@@ -126,8 +131,8 @@ export function CreateCampaignModal({
     const bodyComp = components?.find((c: any) => c.type === 'BODY');
     if (!bodyComp?.text) return null;
     let text = bodyComp.text as string;
-    bodyParamValues.forEach((val, i) => {
-      text = text.replace(`{{${i + 1}}}`, val || `{{${i + 1}}}`);
+    requirements.bodyParams.forEach((param, i) => {
+      text = text.replace(`{{${param.name}}}`, bodyParamValues[i] || `{{${param.name}}}`);
     });
     return text;
   }, [selectedTemplate, bodyParamValues]);
@@ -205,7 +210,7 @@ export function CreateCampaignModal({
                     {requirements.bodyParams.map((param, i) => (
                       <div key={i}>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Body Variable {`{{${param.index}}}`} {param.example && <span className="text-gray-400 ml-1">e.g., {param.example}</span>}
+                          Variable: <span className="font-bold text-teal-700">{`{{${param.name}}}`}</span> {param.example && <span className="text-gray-400 ml-1">e.g., {param.example}</span>}
                         </label>
                         <input
                           required
@@ -216,7 +221,7 @@ export function CreateCampaignModal({
                             newVals[i] = e.target.value;
                             setBodyParamValues(newVals);
                           }}
-                          placeholder={param.example || `Value for {{${param.index}}}`}
+                          placeholder={param.example || `Value for ${param.name}`}
                           className="w-full border rounded-md p-2 text-sm focus:ring-2 focus:ring-amber-400 outline-none"
                         />
                       </div>
