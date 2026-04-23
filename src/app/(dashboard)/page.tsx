@@ -2,6 +2,8 @@ import prisma from '@/lib/db';
 import { Users, Send, CheckCircle2, AlertCircle, MessageSquare } from 'lucide-react';
 import MediaUpload from '@/components/MediaUpload';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardOverview() {
   const [
     totalContacts,

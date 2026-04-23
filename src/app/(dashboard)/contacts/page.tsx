@@ -2,6 +2,8 @@ import prisma from '@/lib/db';
 import { UploadContactsModal } from '@/components/UploadContactsModal';
 import { DeleteContactButton } from '@/components/DeleteContactButton';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ContactsPage() {
   const contacts = await prisma.contact.findMany({
     orderBy: { createdAt: 'desc' }

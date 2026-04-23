@@ -1,6 +1,7 @@
 'use server';
 
 import prisma from '@/lib/db';
+import { revalidatePath } from 'next/cache';
 
 export async function createContactsBulk(contacts: { name: string; phoneNumber: string }[]) {
   if (!contacts || contacts.length === 0) {
@@ -26,6 +27,8 @@ export async function createContactsBulk(contacts: { name: string; phoneNumber: 
       skipDuplicates: true, // Requires unique constraint on phoneNumber (which exists)
     });
     imported = result.count;
+    
+    revalidatePath('/contacts');
   } catch (error: any) {
     throw new Error(`Bulk import failed: ${error.message}`);
   }
@@ -42,6 +45,7 @@ export async function deleteContact(id: string) {
       prisma.conversation.deleteMany({ where: { contactId: id } }),
       prisma.contact.delete({ where: { id } }),
     ]);
+    revalidatePath('/contacts');
   } catch (error: any) {
     throw new Error(`Failed to delete contact: ${error.message}`);
   }
