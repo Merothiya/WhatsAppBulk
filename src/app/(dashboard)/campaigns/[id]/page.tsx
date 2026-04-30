@@ -33,7 +33,7 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
   const sentCount = batch.items.filter(i => i.status === 'sent').length;
   const failedCount = batch.items.filter(i => i.status === 'failed').length;
   const pendingCount = batch.items.filter(i => i.status === 'pending').length;
-  const remaining = batch.totalRecipients - batch.processedCount - batch.failedCount;
+  const remaining = pendingCount;
   const progress = batch.totalRecipients === 0 ? 0 : Math.round(((sentCount + failedCount) / batch.totalRecipients) * 100);
 
   // Fetch conversations for contacts in this campaign

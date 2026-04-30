@@ -7,18 +7,39 @@ import { BlockContactButton } from '@/components/BlockContactButton';
 
 export const dynamic = 'force-dynamic';
 
-export default async function InboxPage({ searchParams }: { searchParams: { chat?: string, q?: string } }) {
+export default async function InboxPage({ searchParams }: { searchParams: { chat?: string, q?: string, all?: string } }) {
   const activeChatId = searchParams.chat;
   const query = searchParams.q;
+  const showAll = searchParams.all === 'true';
 
-  const where = query ? {
-    contact: {
+  // Base counts (independent of current view)
+  const [repliesCount, allCount] = await Promise.all([
+    prisma.conversation.count({
+      where: {
+        messages: { some: { direction: 'INBOUND' } }
+      }
+    }),
+    prisma.conversation.count()
+  ]);
+
+  const where: any = {};
+  
+  if (!showAll) {
+    where.messages = {
+      some: {
+        direction: 'INBOUND'
+      }
+    };
+  }
+
+  if (query) {
+    where.contact = {
       OR: [
         { name: { contains: query, mode: 'insensitive' as const } },
         { phoneNumber: { contains: query } }
       ]
-    }
-  } : {};
+    };
+  }
 
   const conversations = await prisma.conversation.findMany({
     where,
@@ -30,7 +51,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
       }
     },
     orderBy: { lastMessageAt: 'desc' },
-    take: 50,
+    take: 100, // Increased limit
   });
 
   const activeConversation = activeChatId ? await prisma.conversation.findUnique({
@@ -50,8 +71,22 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
         ${activeChatId ? 'hidden md:flex' : 'flex'} 
         w-full md:w-1/3 border-r h-full flex-col bg-white
       `}>
-        <div className="p-4 border-b bg-gray-50 shrink-0">
+        <div className="p-4 border-b bg-gray-50 shrink-0 flex items-center justify-between">
           <h2 className="font-bold text-lg text-gray-800">Inbox</h2>
+          <div className="flex bg-gray-200 p-0.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider">
+             <Link 
+                href={`/inbox?${new URLSearchParams({ ...searchParams, all: 'false' }).toString()}`}
+                className={`px-2 py-1 rounded-md transition-all ${!showAll ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+             >
+                Replies ({repliesCount})
+             </Link>
+             <Link 
+                href={`/inbox?${new URLSearchParams({ ...searchParams, all: 'true' }).toString()}`}
+                className={`px-2 py-1 rounded-md transition-all ${showAll ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+             >
+                All ({allCount})
+             </Link>
+          </div>
         </div>
         <InboxSearch />
         <div className="flex-1 overflow-y-auto divide-y">

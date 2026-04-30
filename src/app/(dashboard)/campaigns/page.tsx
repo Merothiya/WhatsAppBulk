@@ -8,7 +8,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function CampaignsPage() {
   const [batches, templates] = await Promise.all([
-    prisma.outboundBatch.findMany({ orderBy: { createdAt: 'desc' } }),
+    prisma.outboundBatch.findMany({ 
+      include: { 
+        items: { select: { status: true } } 
+      }, 
+      orderBy: { createdAt: 'desc' } 
+    }),
     prisma.template.findMany({ where: { status: 'APPROVED' } }),
   ]);
 
@@ -21,7 +26,9 @@ export default async function CampaignsPage() {
 
       <div className="grid gap-4">
         {batches.map(batch => {
-          const progress = batch.totalRecipients === 0 ? 0 : Math.round(((batch.processedCount + batch.failedCount) / batch.totalRecipients) * 100);
+          const sentCount = batch.items.filter(i => i.status === 'sent').length;
+          const failedCount = batch.items.filter(i => i.status === 'failed').length;
+          const progress = batch.totalRecipients === 0 ? 0 : Math.round(((sentCount + failedCount) / batch.totalRecipients) * 100);
           return (
             <Link key={batch.id} href={`/campaigns/${batch.id}`} className="block bg-white border rounded-lg p-5 shadow-sm hover:shadow-md transition group relative">
               <div className="flex items-center justify-between">
@@ -39,9 +46,9 @@ export default async function CampaignsPage() {
                   </div>
                   <div className="flex items-center gap-4 text-sm text-gray-700">
                     <span>{batch.totalRecipients} recipients</span>
-                    <span>{batch.processedCount} sent</span>
-                    {batch.failedCount > 0 && <span className="text-red-600">{batch.failedCount} failed</span>}
-                    <span className="text-indigo-600 font-medium">{'\u20B9'}{batch.processedCount} est.</span>
+                    <span>{sentCount} sent</span>
+                    {failedCount > 0 && <span className="text-red-600">{failedCount} failed</span>}
+                    <span className="text-indigo-600 font-medium">{'\u20B9'}{sentCount} est.</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-1.5 mt-3">
                     <div className="bg-teal-600 h-1.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>

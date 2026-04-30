@@ -80,6 +80,7 @@ export async function POST(req: NextRequest) {
         });
 
         // Save Message
+        console.log(`[Webhook] Saving INBOUND message from ${contactPhone} (ID: ${messageInfo.id})`);
         await prisma.message.upsert({
           where: { metaMessageId: messageInfo.id },
           create: {
