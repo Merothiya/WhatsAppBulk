@@ -1,6 +1,6 @@
 import prisma from '@/lib/db';
 import Link from 'next/link';
-import { User, CheckCircle2 } from 'lucide-react';
+import { User, CheckCircle2, ChevronLeft } from 'lucide-react';
 import { MessageReplyInput } from '@/components/MessageReplyInput';
 import { InboxSearch } from '@/components/InboxSearch';
 import { BlockContactButton } from '@/components/BlockContactButton';
@@ -44,9 +44,12 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
   }) : null;
 
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.16))]">
+    <div className="flex h-[calc(100vh-theme(spacing.16))] overflow-hidden">
       {/* Sidebar List */}
-      <div className="w-1/3 border-r h-full flex flex-col bg-white">
+      <div className={`
+        ${activeChatId ? 'hidden md:flex' : 'flex'} 
+        w-full md:w-1/3 border-r h-full flex-col bg-white
+      `}>
         <div className="p-4 border-b bg-gray-50 shrink-0">
           <h2 className="font-bold text-lg text-gray-800">Inbox</h2>
         </div>
@@ -93,13 +96,19 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
       </div>
 
       {/* Main Detail Area */}
-      <div className="flex-1 flex flex-col bg-[#e5ddd5]">
+      <div className={`
+        ${!activeChatId ? 'hidden md:flex' : 'flex'} 
+        flex-1 flex-col bg-[#e5ddd5]
+      `}>
         {activeConversation ? (
           <>
-            <div className="p-4 bg-gray-50 border-b flex items-center justify-between shrink-0">
-               <div className="flex items-center gap-3">
-                  <div className="bg-gray-200 p-2 rounded-full text-gray-600">
-                    <User size={20} />
+            <div className="p-3 md:p-4 bg-gray-50 border-b flex items-center justify-between shrink-0">
+               <div className="flex items-center gap-2 md:gap-3">
+                  <Link href="/inbox" className="md:hidden p-1 -ml-1 text-teal-600">
+                    <ChevronLeft size={24} />
+                  </Link>
+                  <div className="bg-gray-200 p-1.5 md:p-2 rounded-full text-gray-600">
+                    <User size={18} />
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-800">{activeConversation.contact.name || 'Unknown Contact'}</h3>
