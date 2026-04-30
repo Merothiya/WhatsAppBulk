@@ -3,8 +3,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { createCampaign } from '@/app/actions/campaigns';
-import { getContacts, getContactsCount } from '@/app/actions/contacts';
+import { getContacts, getContactsCount, getAllContactIds } from '@/app/actions/contacts';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 interface TemplateParam {
   index: number;
@@ -62,6 +63,7 @@ export function CreateCampaignModal({
   const [bodyParamValues, setBodyParamValues] = useState<string[]>([]);
   const [selectedContactIdsState, setSelectedContactIdsState] = useState<Set<string>>(new Set());
   const [isSelectAll, setIsSelectAll] = useState(false);
+  const [isFetchingIds, setIsFetchingIds] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [totalMatchingCount, setTotalMatchingCount] = useState(0);
   const router = useRouter();
@@ -108,22 +110,14 @@ export function CreateCampaignModal({
         
         // Fetch total matching count
         getContactsCount(searchTerm).then(setTotalMatchingCount).catch(console.error);
+        
+        // When search changes, we are no longer in a "Global Select All" state
+        setIsSelectAll(false);
       }, 300);
 
       return () => clearTimeout(delayDebounceFn);
     }
   }, [searchTerm]);
-
-  // Sync isSelectAll with newly loaded contacts
-  useEffect(() => {
-    if (isSelectAll && contacts.length > 0) {
-      setSelectedContactIdsState(prev => {
-        const next = new Set(prev);
-        contacts.forEach(c => next.add(c.id));
-        return next;
-      });
-    }
-  }, [contacts, isSelectAll]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
@@ -180,9 +174,9 @@ export function CreateCampaignModal({
       const campaignId = await createCampaign(
         formData.get('name') as string,
         selectedTemplateId,
-        isSelectAll ? [] : selectedContactIds, // Send empty array if selectAll is true
+        selectedContactIds, 
         Object.keys(templateVariables).length > 0 ? templateVariables : undefined,
-        isSelectAll,
+        false, // Never use global select all anymore
         searchTerm
       );
       setIsOpen(false);
@@ -343,37 +337,59 @@ export function CreateCampaignModal({
                     />
                   </div>
 
-                  <div className="flex justify-between items-center px-1">
-                    <div className="flex flex-col">
-                      <p className="text-[10px] text-teal-600 uppercase tracking-wider font-bold">
-                        Selected: {isSelectAll ? totalMatchingCount : selectedContactIdsState.size}
-                      </p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
-                        Loaded: {contacts.length} of {totalMatchingCount}
-                      </p>
+                    <div className="flex justify-between items-center px-1">
+                      <div className="flex flex-col">
+                        <p className="text-[10px] text-teal-600 uppercase tracking-wider font-bold">
+                          Selected: {selectedContactIdsState.size}
+                        </p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+                          Loaded: {contacts.length} of {totalMatchingCount}
+                        </p>
+                      </div>
+                      {!loadingContacts && contacts.length > 0 && (
+                        <label className="flex items-center space-x-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 cursor-pointer">
+                          {isFetchingIds ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <input 
+                              type="checkbox" 
+                              className="rounded text-teal-600 focus:ring-teal-500"
+                              checked={isSelectAll}
+                              disabled={isFetchingIds}
+                              onChange={async (e) => {
+                                const checked = e.target.checked;
+                                setIsSelectAll(checked);
+                                setIsFetchingIds(true);
+                                try {
+                                  if (checked) {
+                                    // Fetch ALL IDs for current search and add to set
+                                    const allIds = await getAllContactIds(searchTerm);
+                                    setSelectedContactIdsState(prev => {
+                                      const next = new Set(prev);
+                                      allIds.forEach(id => next.add(id));
+                                      return next;
+                                    });
+                                  } else {
+                                    // Fetch ALL IDs for current search and remove from set
+                                    const allIds = await getAllContactIds(searchTerm);
+                                    setSelectedContactIdsState(prev => {
+                                      const next = new Set(prev);
+                                      allIds.forEach(id => next.delete(id));
+                                      return next;
+                                    });
+                                  }
+                                } catch (err) {
+                                  console.error('Failed to toggle selection', err);
+                                } finally {
+                                  setIsFetchingIds(false);
+                                }
+                              }}
+                            />
+                          )}
+                          <span>{isSelectAll ? 'Deselect All Matching' : 'Select All Matching'}</span>
+                        </label>
+                      )}
                     </div>
-                    {!loadingContacts && contacts.length > 0 && (
-                      <label className="flex items-center space-x-1.5 text-sm font-medium text-teal-600 hover:text-teal-700 cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          className="rounded text-teal-600 focus:ring-teal-500"
-                          checked={isSelectAll}
-                          onChange={(e) => {
-                            const checked = e.target.checked;
-                            setIsSelectAll(checked);
-                            if (checked) {
-                              const batch = new Set(selectedContactIdsState);
-                              contacts.forEach(c => batch.add(c.id));
-                              setSelectedContactIdsState(batch);
-                            } else {
-                              setSelectedContactIdsState(new Set());
-                            }
-                          }}
-                        />
-                        <span>Select All</span>
-                      </label>
-                    )}
-                  </div>
                   <div 
                     onScroll={handleScroll}
                     className="border rounded-md p-3 max-h-48 overflow-y-auto bg-gray-50 space-y-2"
@@ -384,15 +400,13 @@ export function CreateCampaignModal({
                           type="checkbox" 
                           name="contactIds" 
                           value={c.id} 
-                          checked={selectedContactIdsState.has(c.id) || isSelectAll}
+                          checked={selectedContactIdsState.has(c.id)}
                           onChange={(e) => {
                             const next = new Set(selectedContactIdsState);
                             if (e.target.checked) {
                               next.add(c.id);
                             } else {
                               next.delete(c.id);
-                              // If they manual deselect one, it's no longer a "Grand Select All"
-                              setIsSelectAll(false);
                             }
                             setSelectedContactIdsState(next);
                           }}

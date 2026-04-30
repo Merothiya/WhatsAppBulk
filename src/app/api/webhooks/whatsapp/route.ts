@@ -66,10 +66,12 @@ export async function POST(req: NextRequest) {
           : 'Unknown Contact';
 
         // Upsert Contact
+        // We use an empty update object to ensure that if the contact already exists
+        // (e.g., from a CSV import), we do not overwrite their existing name with their WhatsApp profile name.
         const contact = await prisma.contact.upsert({
           where: { phoneNumber: contactPhone },
           create: { phoneNumber: contactPhone, name: contactName },
-          update: { name: contactName },
+          update: {}, 
         });
 
         // Upsert Conversation

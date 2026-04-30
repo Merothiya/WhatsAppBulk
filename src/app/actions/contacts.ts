@@ -100,6 +100,26 @@ export async function getContactsCount(search?: string) {
   }
 }
 
+export async function getAllContactIds(search?: string) {
+  try {
+    const where = search ? {
+      name: {
+        contains: search,
+        mode: 'insensitive' as const
+      }
+    } : {};
+    
+    const contacts = await prisma.contact.findMany({
+      where,
+      select: { id: true }
+    });
+    
+    return contacts.map(c => c.id);
+  } catch (error: any) {
+    throw new Error(`Failed to fetch contact IDs: ${error.message}`);
+  }
+}
+
 export async function blockContact(contactId: string, phoneNumber: string) {
   try {
     return await prisma.$transaction(async (tx) => {
