@@ -2,6 +2,7 @@ import prisma from '@/lib/db';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, XCircle, Clock, Send, IndianRupee, MessageSquare } from 'lucide-react';
 import { BatchRunner } from '@/components/BatchRunner';
+import { RetryButton } from '@/components/RetryButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,6 +125,9 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
         {remaining > 0 && (
           <BatchRunner batchId={batch.id} remaining={remaining} total={batch.totalRecipients} />
         )}
+        <div className="mt-4">
+          <RetryButton batchId={batch.id} failedCount={failedCount} />
+        </div>
       </div>
 
       {/* Two columns: Recipients Table + Conversations */}

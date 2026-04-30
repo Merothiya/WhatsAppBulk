@@ -261,7 +261,6 @@ export async function deleteCampaign(batchId: string) {
     if (batch.status !== 'pending') {
       throw new Error('Only pending campaigns that have not started processing yet can be deleted.');
     }
-
     // Wrap in a transaction to handle referential integrity
     await prisma.$transaction([
       prisma.outboundBatchItem.deleteMany({ where: { batchId } }),
@@ -270,5 +269,47 @@ export async function deleteCampaign(batchId: string) {
     revalidatePath('/campaigns');
   } catch (error: any) {
     throw new Error(`Failed to delete campaign: ${error.message}`);
+  }
+}
+
+export async function retryFailedItems(batchId: string) {
+  try {
+    const batch = await prisma.outboundBatch.findUnique({
+      where: { id: batchId },
+      include: {
+        _count: {
+          select: { items: { where: { status: 'failed' } } }
+        }
+      }
+    });
+
+    if (!batch) throw new Error('Campaign not found.');
+    
+    const failedCountToReset = batch._count.items;
+    
+    if (failedCountToReset === 0) return;
+
+    await prisma.$transaction([
+      prisma.outboundBatchItem.updateMany({
+        where: { batchId, status: 'failed' },
+        data: {
+          status: 'pending',
+          errorMessage: null,
+          processedAt: null,
+        }
+      }),
+      prisma.outboundBatch.update({
+        where: { id: batchId },
+        data: {
+          status: 'pending',
+          failedCount: Math.max(0, batch.failedCount - failedCountToReset)
+        }
+      })
+    ]);
+
+    revalidatePath(`/campaigns/${batchId}`);
+    revalidatePath('/campaigns');
+  } catch (error: any) {
+    throw new Error(`Failed to retry items: ${error.message}`);
   }
 }
