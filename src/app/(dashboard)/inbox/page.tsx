@@ -4,54 +4,20 @@ import { User, CheckCircle2, ChevronLeft } from 'lucide-react';
 import { MessageReplyInput } from '@/components/MessageReplyInput';
 import { InboxSearch } from '@/components/InboxSearch';
 import { BlockContactButton } from '@/components/BlockContactButton';
+import { ConversationList } from '@/components/ConversationList';
+import { getPaginatedConversations } from '@/app/actions/inbox';
 
 export const dynamic = 'force-dynamic';
 
 export default async function InboxPage({ searchParams }: { searchParams: { chat?: string, q?: string, all?: string } }) {
   const activeChatId = searchParams.chat;
-  const query = searchParams.q;
+  const query = searchParams.q || '';
   const showAll = searchParams.all === 'true';
 
-  // Base counts (independent of current view)
-  const [repliesCount, allCount] = await Promise.all([
-    prisma.conversation.count({
-      where: {
-        messages: { some: { direction: 'INBOUND' } }
-      }
-    }),
-    prisma.conversation.count()
-  ]);
-
-  const where: any = {};
-  
-  if (!showAll) {
-    where.messages = {
-      some: {
-        direction: 'INBOUND'
-      }
-    };
-  }
-
-  if (query) {
-    where.contact = {
-      OR: [
-        { name: { contains: query, mode: 'insensitive' as const } },
-        { phoneNumber: { contains: query } }
-      ]
-    };
-  }
-
-  const conversations = await prisma.conversation.findMany({
-    where,
-    include: {
-      contact: true,
-      messages: {
-        orderBy: { createdAt: 'desc' },
-        take: 1
-      }
-    },
-    orderBy: { lastMessageAt: 'desc' },
-    take: 100, // Increased limit
+  const { conversations: initialConversations, nextCursor } = await getPaginatedConversations({
+    limit: 20,
+    showAll,
+    query,
   });
 
   const activeConversation = activeChatId ? await prisma.conversation.findUnique({
@@ -78,55 +44,25 @@ export default async function InboxPage({ searchParams }: { searchParams: { chat
                 href={`/inbox?${new URLSearchParams({ ...searchParams, all: 'false' }).toString()}`}
                 className={`px-2 py-1 rounded-md transition-all ${!showAll ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
              >
-                Replies ({repliesCount})
+                Replies
              </Link>
              <Link 
                 href={`/inbox?${new URLSearchParams({ ...searchParams, all: 'true' }).toString()}`}
                 className={`px-2 py-1 rounded-md transition-all ${showAll ? 'bg-white text-teal-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
              >
-                All ({allCount})
+                All
              </Link>
           </div>
         </div>
         <InboxSearch />
-        <div className="flex-1 overflow-y-auto divide-y">
-          {conversations.map(conv => (
-            <Link 
-              key={conv.id} 
-              href={`/inbox?chat=${conv.id}`}
-              className={`block p-4 transition-colors ${activeChatId === conv.id ? 'bg-teal-50 border-l-4 border-teal-500' : 'hover:bg-gray-50'}`}
-            >
-              <div className="flex justify-between items-start mb-1">
-                <span className="font-semibold text-sm text-gray-800">{conv.contact.name || conv.contact.phoneNumber}</span>
-                <span className="text-xs text-gray-700">
-                  {new Date(conv.lastMessageAt).toLocaleDateString()}
-                </span>
-              </div>
-              <p className="text-sm text-gray-700 truncate">
-                {(() => {
-                  const msg = conv.messages[0];
-                  if (!msg) return 'No messages';
-                  
-                  const content = msg.content as any;
-                  if (msg.direction === 'OUTBOUND') {
-                    if (msg.type === 'template') return `[Template] ${content?.name || 'Sent'}`;
-                    if (msg.type === 'text') return content?.body || content?.text?.body || content?.text || 'Text Sent';
-                    return `[${msg.type} Sent]`;
-                  } else {
-                    if (msg.type === 'text') return content?.text?.body || 'Text message';
-                    if (msg.type === 'button') return `[Button Option: ${content?.button?.text}]`;
-                    if (msg.type === 'interactive') return `[Interactive Response]`;
-                    return `[${msg.type} Received]`;
-                  }
-                })()}
-              </p>
-            </Link>
-          ))}
-          {conversations.length === 0 && (
-            <div className="p-8 text-center text-gray-700 text-sm">
-              No conversations yet.
-            </div>
-          )}
+        <div className="flex-1 overflow-y-auto divide-y relative">
+          <ConversationList
+             initialConversations={initialConversations as any}
+             initialNextCursor={nextCursor}
+             activeChatId={activeChatId}
+             showAll={showAll}
+             query={query}
+          />
         </div>
       </div>
 

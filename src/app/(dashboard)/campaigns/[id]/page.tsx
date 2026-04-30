@@ -162,8 +162,19 @@ export default async function CampaignDetailPage({ params }: { params: { id: str
                         {item.status}
                       </span>
                     </td>
-                    <td className="py-2 px-4 text-xs text-red-600 max-w-[200px] truncate">
-                      {item.errorMessage || '-'}
+                    <td className="py-2 px-4 text-xs text-red-600 max-w-[200px] truncate" title={item.errorMessage || ''}>
+                      {(() => {
+                        if (!item.errorMessage) return '-';
+                        try {
+                          const parsed = JSON.parse(item.errorMessage);
+                          if (Array.isArray(parsed) && parsed.length > 0) {
+                            return parsed[0].title || parsed[0].message || item.errorMessage;
+                          }
+                          return parsed.title || parsed.message || parsed.error?.message || item.errorMessage;
+                        } catch {
+                          return item.errorMessage;
+                        }
+                      })()}
                     </td>
                   </tr>
                 ))}
